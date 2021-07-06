@@ -1,50 +1,32 @@
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
-    exampleOf("filter operator")
 
-    forceUsers.asFlow()
-        .filter { it is Jedi }
-        .collect { forceUser -> log(forceUser.name) }
+    fun turnToDarkSide(): Flow<ForceUser> = forceUsers.asFlow()
+        .transform { forceUser ->
+           if (forceUser is Jedi)
+               emit(Sith(forceUser.name))
+        }
 
-    exampleOf("map operator")
+    exampleOf("Imperative completion")
 
-    suspend fun bestowSithTitle(forceUser: ForceUser): String {
-        delay(DELAY)
-        return "Darth ${forceUser.name}"
+    try {
+        turnToDarkSide().collect { sith ->
+            log("${sith.name}, your journey to the Dark Side is now complete.")
+        }
+    } finally {
+        log("Everything is proceeding as I have foreseen.")
     }
 
-    val sith = forceUsers.asFlow()
-        .filter { it is Sith }
-        .map { bestowSithTitle(it) }
+    exampleOf("Declarative completion")
 
-    sith.collect { log(it) }
+    turnToDarkSide()
+        .onCompletion { log("Everything is proceeding as I have foreseen.") }
+        .collect { sith ->
+        log("${sith.name}, your journey to the Dark Side is now complete.")
+    }
 
-    exampleOf("transform operator")
-
-    forceUsers.asFlow()
-        .transform { forceUser ->
-            if (forceUser is Sith) {
-                emit("Turning ${forceUser.name} to the Dark Side")
-                emit(bestowSithTitle(forceUser))
-            }
-        }
-        .collect { log(it) }
-
-    exampleOf("size-limiting operators")
-
-    sith.take(2).collect { log(it) }
-
-    exampleOf("terminal operators")
-
-    val jediLineage = forceUsers.asFlow()
-        .filter { it is Jedi }
-        .map { it.name }
-        .reduce { a,b -> "$a trained by $b" }
-
-    log(jediLineage)
 }
 
 
