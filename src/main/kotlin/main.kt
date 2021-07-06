@@ -1,32 +1,25 @@
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
-
-    fun turnToDarkSide(): Flow<ForceUser> = forceUsers.asFlow()
-        .transform { forceUser ->
-           if (forceUser is Jedi)
-               emit(Sith(forceUser.name))
+    fun duelOfTheFates(): Flow<ForceUser> = flow {
+        for (forceUser in forceUsers) {
+            delay(DELAY)
+            log("Battling ${forceUser.name}")
+            emit(forceUser)
         }
-
-    exampleOf("Imperative completion")
-
-    try {
-        turnToDarkSide().collect { sith ->
-            log("${sith.name}, your journey to the Dark Side is now complete.")
+    }.transform { forceUser ->
+        if (forceUser is Sith) {
+            forceUser.name = "Darth ${forceUser.name}"
         }
-    } finally {
-        log("Everything is proceeding as I have foreseen.")
+        emit(forceUser)
+    }.flowOn(Dispatchers.Default)
+
+    duelOfTheFates().collect {
+        log("Battled ${it.name}")
     }
-
-    exampleOf("Declarative completion")
-
-    turnToDarkSide()
-        .onCompletion { log("Everything is proceeding as I have foreseen.") }
-        .collect { sith ->
-        log("${sith.name}, your journey to the Dark Side is now complete.")
-    }
-
 }
 
 
