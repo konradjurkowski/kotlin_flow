@@ -1,72 +1,65 @@
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
-import kotlin.system.measureTimeMillis
 
-fun main() = runBlocking {
-
-    exampleOf("zip")
-
-    var characters = characterNames.asFlow()
-    var weapons = weaponNames.asFlow()
-
-    characters.zip(weapons) { character, weapon -> "$character: $weapon" }
-        .collect { log(it) }
-
-
-    exampleOf("onEach and zip with delays")
-
-    characters = characterNames.asFlow().onEach { delay(DELAY / 2) }
-    weapons = weaponNames.asFlow().onEach { delay(DELAY) }
-    var start = System.currentTimeMillis()
-
-    characters.zip(weapons) { character, weapon -> "$character: $weapon" }
-        .collect { log("$it at ${System.currentTimeMillis() - start} ms") }
-
-    exampleOf("combine")
-
-    characters = characterNames.asFlow().onEach { delay(DELAY / 2) }
-    weapons = weaponNames.asFlow().onEach { delay(DELAY) }
-    start = System.currentTimeMillis()
-
-    characters.combine(weapons) { character, weapon -> "$character: $weapon" }
-        .collect { log("$it at ${System.currentTimeMillis() - start} ms") }
-
-    exampleOf("flatMapConcat")
-
-    fun suitUp(string: String): Flow<String> = flow {
-        emit("$string gets dressed for battle")
+fun midichlorianTest(): Flow<Int> = flow {
+    for (key in midichlorianCounts.keys) {
+        log("Testing $key")
         delay(DELAY)
-        emit("$string dons their helmet")
+        emit(midichlorianCounts[key] ?: 0)
+    }
+}
+
+fun midichlorianTestString(): Flow<String> =
+    flow<Int> {
+        for (key in midichlorianCounts.keys) {
+            log("Testing $key")
+            delay(DELAY)
+            emit(midichlorianCounts[key] ?: 0)
+        }
+    }.map { testResult ->
+        check(testResult <= CHOSEN_ONE_THRESHOLD) { "Test Result: $testResult" }
+        "$testResult"
     }
 
-    characterNames.asFlow().map { suitUp(it) }
-        .collect { println(it) }
+fun main() = runBlocking {
+    exampleOf("Catching exceptional condition")
 
-    start = System.currentTimeMillis()
-    characterNames.asFlow().onEach { delay(DELAY / 2) }
-        .flatMapConcat { suitUp(it) }
-        .collect { value ->
-            log("$value at ${System.currentTimeMillis() - start} ms")
+    try {
+        midichlorianTest().collect {
+            log("$it")
+            check(it <= CHOSEN_ONE_THRESHOLD) { "Test Result: $it" }
         }
+    } catch (error: Throwable) {
+        log("Could be the chosen one! ::: $error")
+    }
 
-    exampleOf("flatMapMerge")
+    exampleOf("Catching from intermediate operator")
 
-    characterNames.asFlow().onEach { delay(DELAY / 2) }
-        .flatMapMerge { suitUp(it) }
-        .collect { value ->
-            log("$value at ${System.currentTimeMillis() - start} ms")
-        }
+    try {
+        midichlorianTestString().collect { log("$it") }
+    } catch(error: Throwable) {
+        log("Could be the chosen one! ::: $error")
+    }
 
-    exampleOf("flatMapLatest")
+    exampleOf("Exception transparency")
 
-    characterNames.asFlow().onEach { delay(DELAY / 2) }
-        .flatMapLatest { suitUp(it) }
+    midichlorianTest()
+        .catch { e -> log("Exception caught: $e") }
         .collect {
-            log("$it at ${System.currentTimeMillis() - start} ms")
+            check(it <= CHOSEN_ONE_THRESHOLD) { "Test Result: $it" }
+            log("$it")
         }
 
+    exampleOf("Catching declaratively")
+
+    midichlorianTest()
+        .onEach {
+            check(it <= CHOSEN_ONE_THRESHOLD) { "Test Result: $it" }
+            log("$it")
+        }
+        .catch { e -> log("Exception caught: $e") }
+        .collect()
 }
 
 
